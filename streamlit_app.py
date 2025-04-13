@@ -1,16 +1,20 @@
 import streamlit as st
-from PIL import Image
+import cv2 # For image processing
+from PIL import Image, ImageFilter, ImageOps # For image handling
 import pytesseract
+import pdf2image
 from pdf2image import convert_from_bytes # To handle PDF files
 import io # To handle byte streams
 import os # To potentially check for Tesseract path if needed locally
+import numpy as np
+
+
 
 # --- Configuration (Optional: Set Tesseract path if needed locally) ---
 # On Streamlit Community Cloud, Tesseract should be discoverable if installed via packages.txt
 # If running locally and Tesseract is not in your PATH, you might need to set this.
 # Check common paths or where you installed it. Leave commented out for cloud deployment.
 # Example paths:
-# tesseract_path_linux = "/usr/bin/tesseract"
 # tesseract_path_windows = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 # if os.path.exists(tesseract_path_windows):
 #     pytesseract.pytesseract.tesseract_cmd = tesseract_path_windows
@@ -21,21 +25,54 @@ import os # To potentially check for Tesseract path if needed locally
 #      pass
 
 
+
+
 # --- Helper Functions ---
+def preprocess_image(image_obj):
+    """
+    Preprocesses the image to improve OCR accuracy.
+    Args:
+        image_obj (PIL.Image.Image): The image to preprocess.
+    Returns:
+        PIL.Image.Image: The preprocessed image.
+    """
+    try:
+        # Convert the image to grayscale
+        image = image_obj.convert("L")
+
+        # Apply adaptive thresholding to enhance text visibility
+        image_np = np.array(image)
+        image_np = cv2.adaptiveThreshold(
+            image_np, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+        )
+
+        # Convert back to PIL Image
+        preprocessed_image = Image.fromarray(image_np)
+
+        # Optionally, apply additional filters (e.g., sharpening)
+        preprocessed_image = preprocessed_image.filter(ImageFilter.SHARPEN)
+
+        return preprocessed_image
+    except Exception as e:
+        st.warning(f"An error occurred during image preprocessing: {e}")
+        return image_obj 
+
 
 def perform_ocr_on_image(image_obj):
     """
     Performs OCR on a single PIL Image object.
-
     Args:
         image_obj (PIL.Image.Image): The image to process.
-
     Returns:
         str: The extracted text, or None if an error occurred.
     """
     try:
+        
+        # Preprocess the image
+        preprocessed_image = preprocess_image(image_obj)
+        
         # Perform OCR using pytesseract
-        text = pytesseract.image_to_string(image_obj)
+        text = pytesseract.image_to_string(preprocessed_image)
         return text
     except pytesseract.TesseractNotFoundError:
         st.error(
@@ -52,10 +89,8 @@ def perform_ocr_on_image(image_obj):
 def perform_ocr_on_pdf(pdf_bytes):
     """
     Converts PDF bytes to images and performs OCR on each page.
-
     Args:
         pdf_bytes (bytes): The byte content of the PDF file.
-
     Returns:
         str: The concatenated extracted text from all pages, or None if an error occurred.
     """
@@ -64,7 +99,8 @@ def perform_ocr_on_pdf(pdf_bytes):
         # Convert PDF bytes to a list of PIL Image objects
         # poppler_path=None relies on poppler being in PATH or installed via packages.txt
         # On Streamlit Cloud, poppler-utils installed via packages.txt handles this.
-        images = convert_from_bytes(pdf_bytes, poppler_path=None)
+        print("PDF bytes: ", type(pdf_bytes))
+        images = convert_from_bytes(pdf_bytes, poppler_path=None, grayscale=True)
 
         if not images:
             st.warning("Could not extract any images from the PDF. The PDF might be empty, corrupted, or text-based (not scanned).")
@@ -109,12 +145,33 @@ def perform_ocr_on_pdf(pdf_bytes):
         st.error(f"An unexpected error occurred during PDF processing: {e}")
         return None
 
+
+
 # --- Streamlit App UI ---
+st.set_page_config(page_icon=":page_with_curl:", page_title="Simple OCR App", layout='wide')
 
-st.set_page_config(page_title="Simple OCR App", layout="wide")
+st.markdown("""
 
-st.title("📄 Simple OCR Application")
-st.markdown("Upload an **Image** (PNG, JPG, BMP, TIFF) or a **PDF** file to extract text using Tesseract OCR.")
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"> 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+<nav class="navbar fixed-bottom" >
+ <div class="container-fluid">
+  <div class="container-fluid nav-brand">
+  <a class="navbar-brand" href="aakrit-resume.streamlit.app" title="Go to Top" >Aakrit Sharma Lamsal</a>
+ </div>
+ </div>
+</nav>
+""", unsafe_allow_html=True)
+
+with open("style.css") as f:
+    st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
+
+
+st.title("📄 OCR Application by Aakrit")
+st.markdown("Upload an **Image** (PNG, JPG, BMP, TIFF) or a **PDF** file to extract text.")
 
 # 1. Choose file type
 file_type = st.radio(
