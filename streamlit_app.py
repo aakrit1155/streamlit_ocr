@@ -160,7 +160,7 @@ st.markdown("""
 <nav class="navbar fixed-bottom" >
  <div class="container-fluid">
   <div class="container-fluid nav-brand">
-  <a class="navbar-brand" href="aakrit-resume.streamlit.app" title="Go to Top" >Aakrit Sharma Lamsal</a>
+  <a class="navbar-brand" href="https://aakrit-resume.streamlit.app" title="Go to Top" >Aakrit Sharma Lamsal</a>
  </div>
  </div>
 </nav>
