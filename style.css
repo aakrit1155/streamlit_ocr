@@ -146,9 +146,9 @@ h5 {
 
 img {
 
-    margin-left: 38vw;
-    width: auto;
-    height: auto;
+    margin-left: auto;
+    width: 500px;
+    height: 500px;
 }
 
 #MainMenu {
